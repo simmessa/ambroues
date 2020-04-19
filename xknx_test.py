@@ -15,7 +15,7 @@ async def main():
         print(device)
 
     light = Light(xknx,
-                  name='TestLight',
+                  name='StairsLed',
                   group_address_switch='2/0/20')
     await light.set_on()
     await asyncio.sleep(2)

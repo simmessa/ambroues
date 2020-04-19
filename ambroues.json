@@ -1,0 +1,16 @@
+{
+  "zones": [
+    {
+      "zone_name": "zone_1",
+      "zone_address": "2/0/20",
+      "zone_switch": "on",
+      "zone_duration": "2"
+    },
+    {
+      "zone_name": "zone_2",
+      "zone_address": "2/0/1",
+      "zone_switch": "on",
+      "zone_duration": "2"
+    }
+  ]
+}
