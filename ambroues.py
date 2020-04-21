@@ -1,32 +1,40 @@
 import asyncio
 import json
-import schedule
 import time
 from xknx import XKNX
 from xknx.devices import Light
 
-async def main():
 
+async def init():
     """Read settings"""
     with open('ambroues.json') as json_settings:
         data = json.load(json_settings)
         print("Ambroues started with settings:")
         print(json.dumps(data, indent=4))
 
-    schedule.every().second.do(job)
-
+async def watch():
     while True:
-        schedule.run_pending()
-        time.sleep(1)
+        seconds = time.time()
+        print("WATERING!(%d)" % seconds)
+        await asyncio.sleep(1)
+
+def stop():
+    watch_task.cancel()
 
 loop = asyncio.get_event_loop()
+#run only X times
+loop.call_later(2, stop)
+init_task = loop.create_task(init())
+watch_task = loop.create_task(watch())
 
+try:
+    loop.run_until_complete(init_task)
+    loop.run_until_complete(watch_task)
+except asyncio.CancelledError:
+    pass
 
 # pylint: disable=invalid-name
 
-def job():
-    seconds = time.time()
-    print("WATERING!(%d)" % seconds)
 
     """Connect to KNX/IP bus, switch on light, wait 2 seconds and switch it off again."""
 
@@ -44,5 +52,3 @@ def job():
     # await asyncio.sleep(2)
     # await light.set_off()
     # await xknx.stop()
-loop.run_until_complete(main())
-loop.close()
