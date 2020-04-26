@@ -10,15 +10,9 @@ DEBUG = True
 # constants
 WATCH_LOOP_SECONDS = 10
 
-# globals
-xknx = XKNX(config='xknx.yaml')
-
 async def ambroues_init():
     # Init KNX
     await xknx.start()
-
-    # Init colorama
-    init()
 
     # Read Ambroues settings
     with open('ambroues.json') as json_settings:
@@ -80,6 +74,18 @@ async def stop_water(zone, xknx):
 async def stop_xknx(xknx):
     await xknx.stop()
     print("\nKNX engine stopped.")
+
+# Init colorama
+init()
+
+# KNX global bus init
+try:
+    with open('xknx.yaml') as f:
+        print(Fore.YELLOW + "\nxknx.yaml found, configuring KNX bus")
+        xknx = XKNX(config='xknx.yaml')
+except IOError:
+    print(Fore.RED + "\nxknx.yaml doesn't exist, Ambroues will continue with auto-discovery, but please keep in mind explicit knx configuration is recommended")
+    xknx = XKNX()
 
 # declaring event loop and doing init
 loop = asyncio.get_event_loop()
