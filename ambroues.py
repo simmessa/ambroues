@@ -6,7 +6,7 @@ from xknx import XKNX
 from xknx.devices import Light
 
 # debug
-DEBUG = True
+DEBUG = False #Useful for testing that KNX is sending stuff
 # constants
 WATCH_LOOP_SECONDS = 10
 
