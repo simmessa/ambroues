@@ -5,10 +5,10 @@ async def periodic(test, loop):
         print('periodic')
         await asyncio.sleep(1)
         if test == True:
-            loop.call_soon(boom)
+            loop.call_soon(boom,"boh")
             test = False
 
-def boom():
+def boom(boh):
     print("BOOM!")
 
 def stop():
