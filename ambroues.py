@@ -15,14 +15,18 @@ async def ambroues_init():
     await xknx.start()
 
     # Read Ambroues settings
-    with open('ambroues.json') as json_settings:
-        data = json.load(json_settings)
-        print(Fore.YELLOW + "\nAmbroues started with %d zones:\n" % len(data['zones']))
+    try:
+        with open('ambroues.json') as json_settings:
+            data = json.load(json_settings)
+            print(Fore.YELLOW + "\nAmbroues started with %d zones:\n" % len(data['zones']))
 
-        for zone in data['zones']:
-            print("zone [%s] starts at %s, runs for %s minutes, on %s" % (zone['zone_name'], zone['zone_start_time'], zone['zone_duration_minutes'], zone['zone_week_days']) )
-        print("----------------------------------------------")
-        return data['zones']
+            for zone in data['zones']:
+                print("zone [%s] starts at %s, runs for %s minutes, on %s" % (zone['zone_name'], zone['zone_start_time'], zone['zone_duration_minutes'], zone['zone_week_days']) )
+            print("----------------------------------------------")
+            return data['zones']
+    except IOError:
+        print(Fore.RED + "ambroues.json file is required but none found! Exiting.")
+        exit()
 
 async def watch(zones, DEBUG):
     # endless loop...
