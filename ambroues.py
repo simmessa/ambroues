@@ -14,26 +14,27 @@ WATCH_LOOP_SECONDS = 10
 xknx = XKNX(config='xknx.yaml')
 
 async def ambroues_init():
-    """Init KNX"""
+    # Init KNX
     await xknx.start()
 
-    """Init colorama"""
+    # Init colorama
     init()
 
-    """Read settings"""
+    # Read Ambroues settings
     with open('ambroues.json') as json_settings:
         data = json.load(json_settings)
         print(Fore.YELLOW + "\nAmbroues started with %d zones:\n" % len(data['zones']))
-        # print(json.dumps(data, indent=4))
 
         for zone in data['zones']:
-            print("zone [%s] starts at %s" % (zone['zone_name'],zone['zone_start_time']) )
+            print("zone [%s] starts at %s, runs for %s minutes, on %s" % (zone['zone_name'], zone['zone_start_time'], zone['zone_duration_minutes'], zone['zone_week_days']) )
         print("----------------------------------------------")
         return data['zones']
 
 async def watch(zones, force):
+    # endless loop...
     while True:
         now = datetime.now()
+        # for testing only
         if force:
             now = datetime.fromisoformat('2020-04-21T09:26:00')
             force = False
@@ -72,31 +73,19 @@ async def stop_water(zone, xknx):
     await irrigation_zone.set_off()
     print("Zone [%s] completed watering (at %s)" % (zone['zone_name'], datetime.now()) )
 
-async def test_xknx(xknx):
-    light = Light(xknx,
-                  name='StairsLed',
-                  group_address_switch='2/0/1')
-    await light.set_on()
-    await asyncio.sleep(2)
-    await light.set_off()
-    await xknx.stop()
-
 async def stop_xknx(xknx):
     await xknx.stop()
     print("\nKNX engine stopped.")
 
-# def stop():
-#     watch_task.cancel()
-
+# declaring event loop and doing init
 loop = asyncio.get_event_loop()
 init_task = loop.create_task(ambroues_init())
 
 try:
     zones = loop.run_until_complete(init_task)
-    # print(json.dumps(zones, indent=4))
     watch_task = loop.create_task(watch(zones, force))
     loop.run_until_complete(watch_task)
-
+# catch SIGINT
 except KeyboardInterrupt:
     print(Fore.RED + "\nCaught SIGINT, exiting.")
     loop.run_until_complete(stop_xknx(xknx))
