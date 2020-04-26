@@ -12,7 +12,7 @@
       "zone_name": "giardino terrazza",
       "zone_knx_address": "2/0/1",
       "zone_enabled": "on",
-      "zone_start_time": "17:39",
+      "zone_start_time": "17:46",
       "zone_duration_minutes": "2",
       "zone_week_days": ["mon","tue","wed","thu","fri","sat","sun"]
     },

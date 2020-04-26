@@ -10,6 +10,8 @@ from python:3.8-alpine
 COPY --from=build-env /app /app
 COPY --from=build-env /opt/venv /opt/venv
 WORKDIR /app
+ENV TZ=Europe/Rome
+RUN apk add --update tzdata
 ENV VIRTUAL_ENV /app/env
 ENV PATH="/opt/venv/bin:$PATH"
-CMD ["python","ambroues.py"]
+CMD ["python", "ambroues.py"]
