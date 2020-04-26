@@ -5,10 +5,16 @@ from datetime import datetime
 from xknx import XKNX
 from xknx.devices import Light
 
+# debug
+force = True
+# constants
+WATCH_LOOP_SECONDS = 10
+
+# globals
+xknx = XKNX(config='xknx.yaml')
 
 async def init():
     """Init KNX"""
-    xknx = XKNX(config='xknx.yaml')
     await xknx.start()
 
     """Read settings"""
@@ -19,70 +25,75 @@ async def init():
 
         for zone in data['zones']:
             print("%s starts at %s" % (zone['zone_name'],zone['zone_start_time']) )
-            # irrigation_zone = Light(xknx, name=,
-            #           group_address_switch='2/0/20')
         return data['zones']
 
-    # await light.set_on()
-    # await asyncio.sleep(2)
-    # await light.set_off()
-    # await xknx.stop()
-
-async def watch(zones):
+async def watch(zones, force):
     while True:
-        # now = datetime.now()
-        now = datetime.fromisoformat('2020-04-21T17:38:00')
-        now = str(now.hour)+":"+str(now.minute)
+        now = datetime.now()
+        if force:
+            now = datetime.fromisoformat('2020-04-21T09:26:00')
+            force = False
+        now = "%02d:%02d:%02d" % (now.hour, now.minute, now.second)
         print("Watching irrigation jobs: (%s)" % now)
 
         for zone in zones:
             # starting watering
             if zone['zone_start_time'] == now:
-                print("%s matches! start watering for %s minutes" % (zone['zone_name'],zone['zone_duration_minutes']) )
-                await water(zone)
+                if zone['zone_enabled'] == 'on':
+                    print("%s matches! start watering for %s minutes" % (zone['zone_name'],zone['zone_duration_minutes']) ),
+                    asyncio.gather(
+                        start_water(zone, xknx),
+                        stop_water(zone, xknx)
+                    )
+                else:
+                    print("zone [%s] is disabled, won't start watering" % (zone['zone_name']) ),
             else:
-                print ("%s doesn't match %s" %(zone['zone_start_time'], now))
-            # stopping watering
-        await asyncio.sleep(1)
+                # print ("%s doesn't match %s" %(zone['zone_start_time'], now))
+                pass
+        # run every WATCH_LOOP_SECONDS seconds
+        await asyncio.sleep(WATCH_LOOP_SECONDS)
 
-async def water(zone):
-    print("watering for %s (%s)" % (zone['zone_duration_minutes'], time.time()) )
-    await asyncio.sleep(int(zone['zone_duration_minutes'])*10)
+async def start_water(zone, xknx):
+    print("watering [%s] for %s minutes (at %s) to knx address %s" % (zone['zone_name'], zone['zone_duration_minutes'], datetime.now(), zone['zone_knx_address']) )
+    irrigation_zone = Light(xknx,
+                            name=zone['zone_name'],
+                            group_address_switch=zone['zone_knx_address'])
+    await irrigation_zone.set_on()
 
+async def stop_water(zone, xknx):
+    await asyncio.sleep(int(zone['zone_duration_minutes']) * 60)
+    irrigation_zone = Light(xknx,
+                            name=zone['zone_name'],
+                            group_address_switch=zone['zone_knx_address'])
+    await irrigation_zone.set_off()
+    print("Zone [%s] completed watering (at %s)" % (zone['zone_name'], datetime.now()) )
 
-def stop():
-    watch_task.cancel()
+async def test_xknx(xknx):
+    light = Light(xknx,
+                  name='StairsLed',
+                  group_address_switch='2/0/1')
+    await light.set_on()
+    await asyncio.sleep(2)
+    await light.set_off()
+    await xknx.stop()
+
+async def stop_xknx(xknx):
+    await xknx.stop()
+    print("\nKNX engine stopped.")
+
+# def stop():
+#     watch_task.cancel()
 
 loop = asyncio.get_event_loop()
-#stop after X seconds
-# loop.call_later(3, stop)
 init_task = loop.create_task(init())
 
 try:
     zones = loop.run_until_complete(init_task)
-    print(json.dumps(zones, indent=4))
-
-    watch_task = loop.create_task(watch(zones))
+    # print(json.dumps(zones, indent=4))
+    watch_task = loop.create_task(watch(zones, force))
     loop.run_until_complete(watch_task)
-except asyncio.CancelledError:
-    pass
 
-# pylint: disable=invalid-name
-
-
-    """Connect to KNX/IP bus, switch on light, wait 2 seconds and switch it off again."""
-
-    # xknx = XKNX(config='xknx.yaml')
-    #
-    # await xknx.start()
-    #
-    # for device in xknx.devices:
-    #     print(device)
-    #
-    # light = Light(xknx,
-    #               name='StairsLed',
-    #               group_address_switch='2/0/20')
-    # await light.set_on()
-    # await asyncio.sleep(2)
-    # await light.set_off()
-    # await xknx.stop()
+except KeyboardInterrupt:
+    print("\nCaught SIGINT, exiting.")
+    loop.run_until_complete(stop_xknx(xknx))
+    print("\nAmbroues successfully terminated")
