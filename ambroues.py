@@ -1,6 +1,6 @@
 import asyncio
 import json
-import time
+from colorama import init, Fore
 from datetime import datetime
 from xknx import XKNX
 from xknx.devices import Light
@@ -13,18 +13,22 @@ WATCH_LOOP_SECONDS = 10
 # globals
 xknx = XKNX(config='xknx.yaml')
 
-async def init():
+async def ambroues_init():
     """Init KNX"""
     await xknx.start()
+
+    """Init colorama"""
+    init()
 
     """Read settings"""
     with open('ambroues.json') as json_settings:
         data = json.load(json_settings)
-        # print("Ambroues started with settings:")
+        print(Fore.YELLOW + "\nAmbroues started with %d zones:\n" % len(data['zones']))
         # print(json.dumps(data, indent=4))
 
         for zone in data['zones']:
-            print("%s starts at %s" % (zone['zone_name'],zone['zone_start_time']) )
+            print("zone [%s] starts at %s" % (zone['zone_name'],zone['zone_start_time']) )
+        print("----------------------------------------------")
         return data['zones']
 
 async def watch(zones, force):
@@ -34,7 +38,7 @@ async def watch(zones, force):
             now = datetime.fromisoformat('2020-04-21T09:26:00')
             force = False
         now = "%02d:%02d:%02d" % (now.hour, now.minute, now.second)
-        print("Watching irrigation jobs: (%s)" % now)
+        print(Fore.GREEN + "Watching irrigation jobs: (%s)" % now)
 
         for zone in zones:
             # starting watering
@@ -85,7 +89,7 @@ async def stop_xknx(xknx):
 #     watch_task.cancel()
 
 loop = asyncio.get_event_loop()
-init_task = loop.create_task(init())
+init_task = loop.create_task(ambroues_init())
 
 try:
     zones = loop.run_until_complete(init_task)
@@ -94,6 +98,6 @@ try:
     loop.run_until_complete(watch_task)
 
 except KeyboardInterrupt:
-    print("\nCaught SIGINT, exiting.")
+    print(Fore.RED + "\nCaught SIGINT, exiting.")
     loop.run_until_complete(stop_xknx(xknx))
     print("\nAmbroues successfully terminated")

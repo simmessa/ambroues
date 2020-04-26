@@ -3,7 +3,7 @@
     {
       "zone_name": "giardino ingresso",
       "zone_knx_address": "2/0/1",
-      "zone_enabled": "on",
+      "zone_enabled": "off",
       "zone_start_time": "09:26:00",
       "zone_duration_minutes": "2",
       "zone_days_week": "mon,tue,wed,thu,fri,sat,sun"
