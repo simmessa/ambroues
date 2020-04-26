@@ -34,15 +34,16 @@ async def watch(zones, DEBUG):
         now = datetime.now()
         # for testing only
         if DEBUG:
-            now = datetime.fromisoformat('2020-04-21T09:26:00')
+            now = datetime.fromisoformat('2020-04-21T09:26')
             DEBUG = False
-        now = "%02d:%02d:%02d" % (now.hour, now.minute, now.second)
-        today = datetime.now().strftime('%a')
-        print(Fore.GREEN + "Watching irrigation jobs: (%s - %s)" % (now, today) )
+        now_string = "%02d:%02d" % (now.hour, now.minute)
+        today = now.strftime('%a')
+        seconds = now.strftime('%S')
+        print(Fore.GREEN + "Watching irrigation jobs: (%s:%s - %s)" % (now_string, seconds, today) )
 
         for zone in zones:
             # starting watering
-            if zone['zone_start_time'] == now:
+            if zone['zone_start_time'] == now_string:
                 if zone['zone_enabled'] == 'on':
                     if today.lower() in zone['zone_week_days']:
                         print("%s matches! start watering for %s minutes" % (zone['zone_name'],zone['zone_duration_minutes']) ),

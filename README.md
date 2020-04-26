@@ -47,7 +47,7 @@ Here's an example ambroues.json (you can find it in the repo as ambroues-example
       "zone_name": "giardino ovest",
       "zone_knx_address": "1/0/1",
       "zone_enabled": "on",
-      "zone_start_time": "06:30:00",
+      "zone_start_time": "06:30",
       "zone_duration_minutes": "10",
       "zone_week_days": ["mon","tue","wed","thu","fri","sat","sun"]
     },
@@ -55,7 +55,7 @@ Here's an example ambroues.json (you can find it in the repo as ambroues-example
       "zone_name": "giardino sud",
       "zone_knx_address": "1/0/2",
       "zone_enabled": "on",
-      "zone_start_time": "06:40:00",
+      "zone_start_time": "06:40",
       "zone_duration_minutes": "10",
       "zone_week_days": ["mon","wed","fri","sun"]
     },
@@ -63,7 +63,7 @@ Here's an example ambroues.json (you can find it in the repo as ambroues-example
       "zone_name": "giardino est",
       "zone_knx_address": "1/0/3",
       "zone_enabled": "on",
-      "zone_start_time": "06:50:00",
+      "zone_start_time": "06:50",
       "zone_duration_minutes": "10",
       "zone_week_days": ["tue","thu","sat"]
     }
