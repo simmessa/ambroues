@@ -6,7 +6,7 @@ from xknx import XKNX
 from xknx.devices import Light
 
 # debug
-force = True
+DEBUG = True
 # constants
 WATCH_LOOP_SECONDS = 10
 
@@ -30,26 +30,30 @@ async def ambroues_init():
         print("----------------------------------------------")
         return data['zones']
 
-async def watch(zones, force):
+async def watch(zones, DEBUG):
     # endless loop...
     while True:
         now = datetime.now()
         # for testing only
-        if force:
+        if DEBUG:
             now = datetime.fromisoformat('2020-04-21T09:26:00')
-            force = False
+            DEBUG = False
         now = "%02d:%02d:%02d" % (now.hour, now.minute, now.second)
-        print(Fore.GREEN + "Watching irrigation jobs: (%s)" % now)
+        today = datetime.now().strftime('%a')
+        print(Fore.GREEN + "Watching irrigation jobs: (%s - %s)" % (now, today) )
 
         for zone in zones:
             # starting watering
             if zone['zone_start_time'] == now:
                 if zone['zone_enabled'] == 'on':
-                    print("%s matches! start watering for %s minutes" % (zone['zone_name'],zone['zone_duration_minutes']) ),
-                    asyncio.gather(
-                        start_water(zone, xknx),
-                        stop_water(zone, xknx)
-                    )
+                    if today.lower() in zone['zone_week_days']:
+                        print("%s matches! start watering for %s minutes" % (zone['zone_name'],zone['zone_duration_minutes']) ),
+                        asyncio.gather(
+                            start_water(zone, xknx),
+                            stop_water(zone, xknx)
+                        )
+                    else:
+                        print("zone [%s] is disabled for today (%s), won't start watering" % (zone['zone_name'], today)),
                 else:
                     print("zone [%s] is disabled, won't start watering" % (zone['zone_name']) ),
             else:
@@ -59,7 +63,7 @@ async def watch(zones, force):
         await asyncio.sleep(WATCH_LOOP_SECONDS)
 
 async def start_water(zone, xknx):
-    print("watering [%s] for %s minutes (at %s) to knx address %s" % (zone['zone_name'], zone['zone_duration_minutes'], datetime.now(), zone['zone_knx_address']) )
+    print("watering [%s] for %s minutes (at %s) to knx address {%s}" % (zone['zone_name'], zone['zone_duration_minutes'], datetime.now(), zone['zone_knx_address']) )
     irrigation_zone = Light(xknx,
                             name=zone['zone_name'],
                             group_address_switch=zone['zone_knx_address'])
@@ -83,7 +87,7 @@ init_task = loop.create_task(ambroues_init())
 
 try:
     zones = loop.run_until_complete(init_task)
-    watch_task = loop.create_task(watch(zones, force))
+    watch_task = loop.create_task(watch(zones, DEBUG))
     loop.run_until_complete(watch_task)
 # catch SIGINT
 except KeyboardInterrupt:
