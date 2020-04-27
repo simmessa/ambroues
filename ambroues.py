@@ -6,7 +6,7 @@ from xknx import XKNX
 from xknx.devices import Light
 
 # debug
-DEBUG = False #Useful for testing that KNX is sending stuff
+DEBUG = True #Useful for testing that KNX is sending stuff
 # constants
 WATCH_LOOP_SECONDS = 10
 
@@ -17,13 +17,13 @@ async def ambroues_init():
     # Read Ambroues settings
     try:
         with open('ambroues.json') as json_settings:
-            data = json.load(json_settings)
-            print(Fore.YELLOW + "\nAmbroues started with %d zones:\n" % len(data['zones']))
+            settings = json.load(json_settings)
+            print(Fore.YELLOW + "\nAmbroues started with %d zones:\n" % len(settings['zones']))
 
-            for zone in data['zones']:
+            for zone in settings['zones']:
                 print("zone [%s] starts at %s, runs for %s minutes, on %s" % (zone['zone_name'], zone['zone_start_time'], zone['zone_duration_minutes'], zone['zone_week_days']) )
             print("----------------------------------------------")
-            return data['zones']
+            return settings
     except IOError:
         print(Fore.RED + "ambroues.json file is required but none found! Exiting.")
         exit()
@@ -76,9 +76,28 @@ async def stop_water(zone, xknx):
     await irrigation_zone.set_off()
     print("Zone [%s] completed watering (at %s)" % (zone['zone_name'], datetime.now()) )
 
+async def stop_zone(zone, xknx):
+    irrigation_zone = Light(xknx,
+                            name=zone['zone_name'],
+                            group_address_switch=zone['zone_knx_address'])
+    await irrigation_zone.set_off()
+    print("Zone [%s] turned off because we're exiting (at %s)" % (zone['zone_name'], datetime.now()) )
+
 async def stop_xknx(xknx):
     await xknx.stop()
     print("\nKNX engine stopped.")
+
+def sigint(settings):
+    print(Fore.RED + "\nCaught SIGINT, exiting.")
+    if settings['knx_clean_bus'].lower() == "yes":
+        print("knx_clean_bus option is on, switching off all knx zones:\n")
+        for zone in settings['zones']:
+            asyncio.gather(
+                stop_zone(zone, xknx)
+            )
+
+    loop.run_until_complete(stop_xknx(xknx))
+    print("\nAmbroues successfully terminated")
 
 # Init colorama
 init()
@@ -97,11 +116,9 @@ loop = asyncio.get_event_loop()
 init_task = loop.create_task(ambroues_init())
 
 try:
-    zones = loop.run_until_complete(init_task)
-    watch_task = loop.create_task(watch(zones, DEBUG))
+    settings = loop.run_until_complete(init_task)
+    watch_task = loop.create_task(watch(settings['zones'], DEBUG))
     loop.run_until_complete(watch_task)
 # catch SIGINT
 except KeyboardInterrupt:
-    print(Fore.RED + "\nCaught SIGINT, exiting.")
-    loop.run_until_complete(stop_xknx(xknx))
-    print("\nAmbroues successfully terminated")
+    sigint(settings)

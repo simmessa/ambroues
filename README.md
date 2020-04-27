@@ -42,6 +42,7 @@ Here's an example ambroues.json (you can find it in the repo as ambroues-example
 
 ```
 {
+  "knx_clean_bus": "Yes",
   "zones": [
     {
       "zone_name": "giardino ovest",
@@ -70,8 +71,12 @@ Here's an example ambroues.json (you can find it in the repo as ambroues-example
   ]
 }
 ```
+- "knx_clean_bus":  Yes | No
 
-Every setting should be pretty self explanatory.
+If this is turned on (value=Yes) it will send knx datagrams to shut of
+all zones on sigint, for safety reasons.
+
+Every other setting should be pretty self explanatory.
 
 ## Launching Ambroues
 

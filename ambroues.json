@@ -1,8 +1,9 @@
 {
+  "knx_clean_bus": "Yes",
   "zones": [
     {
       "zone_name": "giardino ingresso",
-      "zone_knx_address": "2/0/1",
+      "zone_knx_address": "2/0/9",
       "zone_enabled": "on",
       "zone_start_time": "09:26",
       "zone_duration_minutes": "2",
