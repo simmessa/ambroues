@@ -92,8 +92,24 @@ To run with Docker:
 ```
 docker run -d --network host -v /path/to/ambroues.json:/app/ambroues.json ambroues
 ```
+Example with docker-compose:
+```
+version: "2"
+
+services:
+  ambroues:
+    container_name: ambroues
+    image: ambroues:latest
+    network_mode: host
+    volumes:
+      - /path/to/ambroues.json:/app/ambroues.json
+    environment:
+      - TZ=Europe/Rome
+```
 Things to keep in mind:
 
 - You need host networking mode to be able to connect your KNX interface
 - A json config file (ambroues.json) is required to define irrigation zones
 - This docker container (for x86_64) has been built via multi-stage build so it's kinda slim, about 120 Mb
+- The timezone is forced in this Docker container, so you might want to switch to your timezone via ENV at runtime like this:
+    `ENV TZ=Europe/Rome`
