@@ -4,6 +4,8 @@ from colorama import init, Fore
 from datetime import datetime
 from xknx import XKNX
 from xknx.devices import Light
+import urllib.request
+import urllib.parse
 
 # debug
 DEBUG = True #Useful for testing that KNX is sending stuff
@@ -17,9 +19,28 @@ async def ambroues_init():
     # Read Ambroues settings
     try:
         with open('ambroues.json') as json_settings:
+            # load json into a dict
             settings = json.load(json_settings)
-            print(Fore.YELLOW + "\nAmbroues started with %d zones:\n" % len(settings['zones']))
+            print(json.dumps(settings, indent=2 ))
 
+            # Telegram init is optional
+            if settings['telegram_notifications'] == "Yes":
+                print(Fore.CYAN + "\nTelegram notifications are on, initializing Telegram")
+
+                try:
+                    print("Try Telegram")
+                    api_token = settings["telegram"]["api_token"]
+                    chat_id = settings["telegram"]["chat_id"]
+
+                    url = "https://api.telegram.org/bot"+api_token+"/sendMessage?chat_id="+chat_id+"&text=ambroues"
+                    print(url)
+                    f = urllib.request.urlopen(url)
+                    print(f.read().decode('utf-8'))
+
+                except:
+                    print(Fore.RED + "Cannot init Telegram, have you defined the right settings in ambroues.json ?")
+
+            print(Fore.YELLOW + "\nAmbroues started with %d zones:\n" % len(settings['zones']))
             for zone in settings['zones']:
                 print("zone [%s] starts at %s, runs for %s minutes, on %s" % (zone['zone_name'], zone['zone_start_time'], zone['zone_duration_minutes'], zone['zone_week_days']) )
             print("----------------------------------------------")
