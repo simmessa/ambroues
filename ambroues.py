@@ -62,10 +62,10 @@ async def watch(settings, DEBUG):
                         text = "%s matches! start watering for %s minutes" % (zone['zone_name'],zone['zone_duration_minutes'])
                         print(text),
                         asyncio.gather(
-                            start_water(zone, xknx),
-                            telegram_send(settings, text),
-                            stop_water(zone, xknx)
+                            start_water(settings, zone, xknx),
+                            stop_water(settings, zone, xknx)
                         )
+
                     else:
                         text = "zone [%s] is disabled for today (%s), won't start watering" % (zone['zone_name'], today)
                         print(text)
@@ -75,7 +75,7 @@ async def watch(settings, DEBUG):
                     print(text)
                     await telegram_send(settings, text),
             else:
-                # print ("%s doesn't match %s" %(zone['zone_start_time'], now))
+                # nothing to do, time doesn't match zones schedule
                 pass
         # run every WATCH_LOOP_SECONDS seconds
         await asyncio.sleep(WATCH_LOOP_SECONDS)
@@ -86,20 +86,26 @@ async def telegram_send(settings, text):
     if DEBUG:
         print(f.read().decode('utf-8'))
 
-async def start_water(zone, xknx):
-    print("watering [%s] for %s minutes (at %s) to knx address {%s}" % (zone['zone_name'], zone['zone_duration_minutes'], datetime.now(), zone['zone_knx_address']) )
+async def start_water(settings, zone, xknx):
+    text = "watering [%s] for %s minutes (at %s) to knx address {%s}" % (zone['zone_name'], zone['zone_duration_minutes'], datetime.now(), zone['zone_knx_address'])
+    print(text)
     irrigation_zone = Light(xknx,
                             name=zone['zone_name'],
                             group_address_switch=zone['zone_knx_address'])
     await irrigation_zone.set_on()
+    if settings['telegram_notifications'] == "Yes":
+        await telegram_send(settings, text)
 
-async def stop_water(zone, xknx):
+async def stop_water(settings, zone, xknx):
     await asyncio.sleep(int(zone['zone_duration_minutes']) * 60)
     irrigation_zone = Light(xknx,
                             name=zone['zone_name'],
                             group_address_switch=zone['zone_knx_address'])
     await irrigation_zone.set_off()
-    print("Zone [%s] completed watering (at %s)" % (zone['zone_name'], datetime.now()) )
+    text = "Zone [%s] completed watering (at %s)" % (zone['zone_name'], datetime.now())
+    print(text)
+    if settings['telegram_notifications'] == "Yes":
+        await telegram_send(settings, text)
 
 async def stop_zone(zone, xknx):
     irrigation_zone = Light(xknx,
@@ -111,6 +117,7 @@ async def stop_zone(zone, xknx):
 async def stop_xknx(xknx):
     await xknx.stop()
     print("\nKNX engine stopped.")
+    await telegram_send(settings, "Ambroues successfully terminated")
 
 def sigint(settings):
     print(Fore.RED + "\nCaught SIGINT, exiting.")
