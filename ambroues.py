@@ -28,15 +28,7 @@ async def ambroues_init():
                 print(Fore.CYAN + "\nTelegram notifications are on, initializing Telegram")
 
                 try:
-                    print("Try Telegram")
-                    api_token = settings["telegram"]["api_token"]
-                    chat_id = settings["telegram"]["chat_id"]
-
-                    url = "https://api.telegram.org/bot"+api_token+"/sendMessage?chat_id="+chat_id+"&text=ambroues"
-                    print(url)
-                    f = urllib.request.urlopen(url)
-                    print(f.read().decode('utf-8'))
-
+                    await telegram_send(settings, "Ambroues started with telegram connection")
                 except:
                     print(Fore.RED + "Cannot init Telegram, have you defined the right settings in ambroues.json ?")
 
@@ -49,7 +41,7 @@ async def ambroues_init():
         print(Fore.RED + "ambroues.json file is required but none found! Exiting.")
         exit()
 
-async def watch(zones, DEBUG):
+async def watch(settings, DEBUG):
     # endless loop...
     while True:
         now = datetime.now()
@@ -62,25 +54,37 @@ async def watch(zones, DEBUG):
         seconds = now.strftime('%S')
         print(Fore.GREEN + "Watching irrigation jobs: (%s:%s - %s)" % (now_string, seconds, today) )
 
-        for zone in zones:
+        for zone in settings['zones']:
             # starting watering
             if zone['zone_start_time'] == now_string:
                 if zone['zone_enabled'] == 'on':
                     if today.lower() in zone['zone_week_days']:
-                        print("%s matches! start watering for %s minutes" % (zone['zone_name'],zone['zone_duration_minutes']) ),
+                        text = "%s matches! start watering for %s minutes" % (zone['zone_name'],zone['zone_duration_minutes'])
+                        print(text),
                         asyncio.gather(
                             start_water(zone, xknx),
+                            telegram_send(settings, text),
                             stop_water(zone, xknx)
                         )
                     else:
-                        print("zone [%s] is disabled for today (%s), won't start watering" % (zone['zone_name'], today)),
+                        text = "zone [%s] is disabled for today (%s), won't start watering" % (zone['zone_name'], today)
+                        print(text)
+                        await telegram_send(settings, text),
                 else:
-                    print("zone [%s] is disabled, won't start watering" % (zone['zone_name']) ),
+                    text = "zone [%s] is disabled, won't start watering" % (zone['zone_name'])
+                    print(text)
+                    await telegram_send(settings, text),
             else:
                 # print ("%s doesn't match %s" %(zone['zone_start_time'], now))
                 pass
         # run every WATCH_LOOP_SECONDS seconds
         await asyncio.sleep(WATCH_LOOP_SECONDS)
+
+async def telegram_send(settings, text):
+    url = "https://api.telegram.org/bot" + settings['telegram']['api_token'] + "/sendMessage?chat_id=" + settings['telegram']['chat_id'] + "&text=" + urllib.parse.quote(text)
+    f = urllib.request.urlopen(url)
+    if DEBUG:
+        print(f.read().decode('utf-8'))
 
 async def start_water(zone, xknx):
     print("watering [%s] for %s minutes (at %s) to knx address {%s}" % (zone['zone_name'], zone['zone_duration_minutes'], datetime.now(), zone['zone_knx_address']) )
@@ -138,7 +142,7 @@ init_task = loop.create_task(ambroues_init())
 
 try:
     settings = loop.run_until_complete(init_task)
-    watch_task = loop.create_task(watch(settings['zones'], DEBUG))
+    watch_task = loop.create_task(watch(settings, DEBUG))
     loop.run_until_complete(watch_task)
 # catch SIGINT
 except KeyboardInterrupt:
