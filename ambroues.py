@@ -8,7 +8,7 @@ import urllib.request
 import urllib.parse
 
 # debug
-DEBUG = True #Useful for testing that KNX is sending stuff
+DEBUG = False #Useful for testing that KNX is sending stuff
 # constants
 WATCH_LOOP_SECONDS = 10
 

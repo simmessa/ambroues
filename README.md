@@ -43,6 +43,11 @@ Here's an example ambroues.json (you can find it in the repo as ambroues-example
 ```
 {
   "knx_clean_bus": "Yes",
+  "telegram_notifications": "No",
+  "telegram": {
+    "api_token": "XXXXXXXXX",
+    "chat_id": "123456789"
+  },
   "zones": [
     {
       "zone_name": "giardino ovest",
@@ -75,6 +80,17 @@ Here's an example ambroues.json (you can find it in the repo as ambroues-example
 
 If this is turned on (value=Yes) it will send knx datagrams to shut of
 all zones on sigint, for safety reasons.
+
+- "telegram_notifications": Yes | No
+
+This will enable notifications to your own telegram chat, please remember
+to include the telegram details in your configuration:
+```
+  "telegram": {
+    "api_token": "XXXXXXXXX",
+    "chat_id": "123456789"
+  },
+```
 
 Every other setting should be pretty self explanatory.
 

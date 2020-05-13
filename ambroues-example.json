@@ -1,4 +1,10 @@
 {
+    "knx_clean_bus": "Yes",
+    "telegram_notifications": "No",
+    "telegram": {
+      "api_token": "XXXXXXXXX",
+      "chat_id": "123456789"
+    },
   "zones": [
     {
       "zone_name": "giardino ovest",
