@@ -34,6 +34,7 @@ async def ambroues_init():
 
             print(Fore.YELLOW + "\nAmbroues started with %d zones:\n" % len(settings['zones']))
             for zone in settings['zones']:
+                zone['on'] = False
                 print("zone [%s] starts at %s, runs for %s minutes, on %s" % (zone['zone_name'], zone['zone_start_time'], zone['zone_duration_minutes'], zone['zone_week_days']) )
             print("----------------------------------------------")
             return settings
@@ -56,27 +57,33 @@ async def watch(settings, DEBUG):
 
         for zone in settings['zones']:
             # starting watering
-            if zone['zone_start_time'] == now_string:
-                if zone['zone_enabled'] == 'on':
-                    if today.lower() in zone['zone_week_days']:
-                        text = "%s matches! start watering for %s minutes" % (zone['zone_name'],zone['zone_duration_minutes'])
-                        print(text),
-                        asyncio.gather(
-                            start_water(settings, zone, xknx),
-                            stop_water(settings, zone, xknx)
-                        )
 
+            print('is on? ' % zone['on'])
+
+            if zone['on'] == False: # check if zone is on already
+
+                if zone['zone_start_time'] == now_string:
+                    if zone['zone_enabled'] == 'on':
+                        if today.lower() in zone['zone_week_days']:
+                            text = "%s matches! start watering for %s minutes" % (zone['zone_name'],zone['zone_duration_minutes'])
+                            print(text),
+                            asyncio.gather(
+                                start_water(settings, zone, xknx),
+                                stop_water(settings, zone, xknx)
+                            )
+
+                        else:
+                            text = "zone [%s] is disabled for today (%s), won't start watering" % (zone['zone_name'], today)
+                            print(text)
+                            await telegram_send(settings, text),
                     else:
-                        text = "zone [%s] is disabled for today (%s), won't start watering" % (zone['zone_name'], today)
+                        text = "zone [%s] is disabled, won't start watering" % (zone['zone_name'])
                         print(text)
                         await telegram_send(settings, text),
                 else:
-                    text = "zone [%s] is disabled, won't start watering" % (zone['zone_name'])
-                    print(text)
-                    await telegram_send(settings, text),
-            else:
-                # nothing to do, time doesn't match zones schedule
-                pass
+                    # nothing to do, time doesn't match zones schedule
+                    pass
+
         # run every WATCH_LOOP_SECONDS seconds
         await asyncio.sleep(WATCH_LOOP_SECONDS)
 
@@ -86,13 +93,23 @@ async def telegram_send(settings, text):
     if DEBUG:
         print(f.read().decode('utf-8'))
 
+# these wrap knx light functions w. adding a semaphore
+async def set_on_wrapper(self, zone):
+    await self.set_on()
+    zone['on'] = True
+
+async def set_off_wrapper(self, zone):
+    await self.set_off()
+    zone['on'] = False
+
 async def start_water(settings, zone, xknx):
     text = "watering [%s] for %s minutes (at %s) to knx address {%s}" % (zone['zone_name'], zone['zone_duration_minutes'], datetime.now(), zone['zone_knx_address'])
     print(text)
     irrigation_zone = Light(xknx,
                             name=zone['zone_name'],
                             group_address_switch=zone['zone_knx_address'])
-    await irrigation_zone.set_on()
+
+    await irrigation_zone.set_on_wrapper(zone)
     if settings['telegram_notifications'] == "Yes":
         await telegram_send(settings, text)
 
