@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 from colorama import init, Fore
 from datetime import datetime
 from xknx import XKNX
@@ -7,8 +8,9 @@ from xknx.devices import Light
 import urllib.request
 import urllib.parse
 
-# debug
-DEBUG = False #Useful for testing that KNX is sending stuff
+# to enable debug just set env var AMBROUES_DEBUG to anything
+if 'AMBROUES_DEBUG' in os.environ:
+    DEBUG = True #Useful for testing that KNX is sending stuff
 # constants
 WATCH_LOOP_SECONDS = 10
 
@@ -42,26 +44,25 @@ async def ambroues_init():
         print(Fore.RED + "ambroues.json file is required but none found! Exiting.")
         exit()
 
-async def watch(settings, DEBUG):
-    # endless loop...
+async def watch(settings, DEBUG): # main irrigation endless loop...
     while True:
         now = datetime.now()
         # for testing only
         if DEBUG:
             now = datetime.fromisoformat('2020-04-21T09:26')
-            DEBUG = False
         now_string = "%02d:%02d" % (now.hour, now.minute)
         today = now.strftime('%a')
         seconds = now.strftime('%S')
         print(Fore.GREEN + "Watching irrigation jobs: (%s:%s - %s)" % (now_string, seconds, today) )
 
-        for zone in settings['zones']:
-            # starting watering
-
-            print('is on? ' % zone['on'])
+        for zone in settings['zones']: # check if needs watering
+            irrigation_zone = Light(xknx,
+                                    name=zone['zone_name'],
+                                    group_address_switch=zone['zone_knx_address'])
+            if DEBUG:
+                print('is on? %s' % zone['on'])
 
             if zone['on'] == False: # check if zone is on already
-
                 if zone['zone_start_time'] == now_string:
                     if zone['zone_enabled'] == 'on':
                         if today.lower() in zone['zone_week_days']:
@@ -88,19 +89,11 @@ async def watch(settings, DEBUG):
         await asyncio.sleep(WATCH_LOOP_SECONDS)
 
 async def telegram_send(settings, text):
-    url = "https://api.telegram.org/bot" + settings['telegram']['api_token'] + "/sendMessage?chat_id=" + settings['telegram']['chat_id'] + "&text=" + urllib.parse.quote(text)
-    f = urllib.request.urlopen(url)
-    if DEBUG:
-        print(f.read().decode('utf-8'))
-
-# these wrap knx light functions w. adding a semaphore
-async def set_on_wrapper(self, zone):
-    await self.set_on()
-    zone['on'] = True
-
-async def set_off_wrapper(self, zone):
-    await self.set_off()
-    zone['on'] = False
+    if settings['telegram_notifications'] == "Yes":
+        url = "https://api.telegram.org/bot" + settings['telegram']['api_token'] + "/sendMessage?chat_id=" + settings['telegram']['chat_id'] + "&text=" + urllib.parse.quote(text)
+        f = urllib.request.urlopen(url)
+        if DEBUG:
+            print(f.read().decode('utf-8'))
 
 async def start_water(settings, zone, xknx):
     text = "watering [%s] for %s minutes (at %s) to knx address {%s}" % (zone['zone_name'], zone['zone_duration_minutes'], datetime.now(), zone['zone_knx_address'])
@@ -108,9 +101,9 @@ async def start_water(settings, zone, xknx):
     irrigation_zone = Light(xknx,
                             name=zone['zone_name'],
                             group_address_switch=zone['zone_knx_address'])
-
-    await irrigation_zone.set_on_wrapper(zone)
-    if settings['telegram_notifications'] == "Yes":
+    if zone['on'] == False:
+        await irrigation_zone.set_on()
+        zone['on'] = irrigation_zone.state
         await telegram_send(settings, text)
 
 async def stop_water(settings, zone, xknx):
@@ -118,10 +111,11 @@ async def stop_water(settings, zone, xknx):
     irrigation_zone = Light(xknx,
                             name=zone['zone_name'],
                             group_address_switch=zone['zone_knx_address'])
-    await irrigation_zone.set_off()
-    text = "Zone [%s] completed watering (at %s)" % (zone['zone_name'], datetime.now())
-    print(text)
-    if settings['telegram_notifications'] == "Yes":
+    if zone['on'] == True:
+        await irrigation_zone.set_off()
+        zone['on'] = irrigation_zone.state
+        text = "Zone [%s] completed watering (at %s)" % (zone['zone_name'], datetime.now())
+        print(text)
         await telegram_send(settings, text)
 
 async def stop_zone(zone, xknx):
