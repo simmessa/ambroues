@@ -11,6 +11,8 @@ import urllib.parse
 # to enable debug just set env var AMBROUES_DEBUG to anything
 if 'AMBROUES_DEBUG' in os.environ:
     DEBUG = True #Useful for testing that KNX is sending stuff
+else:
+    DEBUG = False
 # constants
 WATCH_LOOP_SECONDS = 10
 
