@@ -33,6 +33,8 @@ async def ambroues_init():
             if settings['knx_engine'] == "Yes":
                 try:
                     await xknx.start()
+                    print(Fore.GREEN + "Successfully connected to KNX Bus")
+
                 except:
                     ex = sys.exc_info()[0]
                     print("error: %s" % ex)
@@ -46,6 +48,7 @@ async def ambroues_init():
                     client.connect(settings['mqtt']['broker_address'])  # connect to broker
                     client.publish(settings['mqtt']['topic']+"/"+"test", "ON")  # publish
                     settings['mqtt_client'] = client
+                    print(Fore.GREEN + "Successfully connected to MQTT broker on %s" % settings['mqtt']['broker_address'])
                 except:
                     ex = sys.exc_info()[0]
                     print("error: %s" % ex)
