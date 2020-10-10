@@ -86,39 +86,31 @@ async def watch(settings, DEBUG): # main irrigation endless loop...
 
         for zone in settings['zones']: # check if needs watering
 
-            # KNX zones:
-            if 'zone_knx_address' in zone and settings['knx_engine'] == 'Yes':
-                irrigation_zone = Light(xknx,
-                                        name=zone['zone_name'],
-                                        group_address_switch=zone['zone_knx_address'])
-                if DEBUG:
-                    print('is on? %s' % zone['on'])
+            if DEBUG:
+                print('is on? %s' % zone['on'])
 
-                if zone['on'] == False: # check if zone is on already
-                    if (zone['zone_start_time'] == settings['now_string']) or zone['zone_enabled'] == 'force':
-                        text = "%s matches!" % zone['zone_name']
-                               # "watering for %s minutes" % (zone['zone_name'],zone['zone_duration_minutes'])
-                        print(text),
-                        asyncio.gather(
-                            start_water(settings, zone, xknx),
-                            stop_water(settings, zone, xknx)
-                        )
+            if zone['on'] == False: # check if zone is on already
+                if (zone['zone_start_time'] == settings['now_string']) or zone['zone_enabled'] == 'force':
+                    text = "%s matches!" % zone['zone_name']
+                           # "watering for %s minutes" % (zone['zone_name'],zone['zone_duration_minutes'])
+                    print(text),
 
-                        #     else:
-                        #         text = "zone [%s] is disabled for today (%s), won't start watering" % (zone['zone_name'], today)
-                        #         print(text)
-                        #         await telegram_send(settings, text),
-                        # else:
-                        #     text = "zone [%s] is disabled, won't start watering" % (zone['zone_name'])
-                        #     print(text)
-                        #     await telegram_send(settings, text),
-                    else:
-                        # nothing to do, time doesn't match zones schedule
-                        pass
+                    asyncio.gather(
+                        start_water(settings, zone),
+                        stop_water(settings, zone)
+                    )
 
-            if 'zone_mqtt_address' in zone and settings['mqtt_engine'] == 'Yes':
-                print("spamming mqtt")
-                settings['mqtt_client'].publish(settings['mqtt']['topic']+"/"+zone['zone_mqtt_address'], "ON")  # publish
+                    #     else:
+                    #         text = "zone [%s] is disabled for today (%s), won't start watering" % (zone['zone_name'], today)
+                    #         print(text)
+                    #         await telegram_send(settings, text),
+                    # else:
+                    #     text = "zone [%s] is disabled, won't start watering" % (zone['zone_name'])
+                    #     print(text)
+                    #     await telegram_send(settings, text),
+                else:
+                    # nothing to do, time doesn't match zones schedule
+                    pass
 
         # run every WATCH_LOOP_SECONDS seconds
         await asyncio.sleep(WATCH_LOOP_SECONDS)
@@ -130,36 +122,57 @@ async def telegram_send(settings, text):
         if DEBUG:
             print(f.read().decode('utf-8'))
 
-async def start_water(settings, zone, xknx):
+async def start_water(settings, zone):
 
     if zone['zone_enabled'] == 'force' or ((zone['zone_enabled'] == 'on') and (settings['today'].lower() in zone['zone_week_days'])):
         print("enabled or today")
-        irrigation_zone = Light(xknx,
-                                name=zone['zone_name'],
-                                group_address_switch=zone['zone_knx_address'])
-        if zone['on'] == False:
+
+        # is a KNX zone:
+        if 'zone_knx_address' in zone and settings['knx_engine'] == 'Yes':
+            irrigation_zone = Light(xknx,
+                                    name=zone['zone_name'],
+                                    group_address_switch=zone['zone_knx_address'])
+
             text = "watering [%s] for %s minutes (at %s) to knx address {%s}" % (zone['zone_name'], zone['zone_duration_minutes'], datetime.now(), zone['zone_knx_address'])
             print(text)
             await irrigation_zone.set_on()
             zone['on'] = irrigation_zone.state
             await telegram_send(settings, text)
+
+        # is an MQTT zone:
+        if 'zone_mqtt_address' in zone and settings['mqtt_engine'] == 'Yes':
+            text = "watering [%s] for %s minutes (at %s) to mqtt address {%s}" % (zone['zone_name'], zone['zone_duration_minutes'], datetime.now(), zone['zone_mqtt_address'])
+            print(text)
+            print("spamming mqtt")
+            settings['mqtt_client'].publish(settings['mqtt']['topic'] + "/" + zone['zone_mqtt_address'], "ON")  # publish
+
     else:
         text = "zone [%s] is disabled or not planned for today (%s), won't start watering" % (zone['zone_name'], settings['today'])
         print(text)
         await telegram_send(settings, text)
 
-async def stop_water(settings, zone, xknx):
+async def stop_water(settings, zone):
 
     await asyncio.sleep(int(zone['zone_duration_minutes']) * 60)
-    irrigation_zone = Light(xknx,
-                            name=zone['zone_name'],
-                            group_address_switch=zone['zone_knx_address'])
-    if zone['on'] == True:
-        await irrigation_zone.set_off()
-        zone['on'] = irrigation_zone.state
-        text = "Zone [%s] completed watering (at %s)" % (zone['zone_name'], datetime.now())
-        print(text)
-        await telegram_send(settings, text)
+
+    # is a KNX zone:
+    if 'zone_knx_address' in zone and settings['knx_engine'] == 'Yes':
+
+        irrigation_zone = Light(xknx,
+                                name=zone['zone_name'],
+                                group_address_switch=zone['zone_knx_address'])
+        if zone['on'] == True:
+            await irrigation_zone.set_off()
+            zone['on'] = irrigation_zone.state
+            text = "Zone [%s] completed watering (at %s)" % (zone['zone_name'], datetime.now())
+            print(text)
+            await telegram_send(settings, text)
+
+
+    # is an MQTT zone:
+    if 'zone_mqtt_address' in zone and settings['mqtt_engine'] == 'Yes':
+        print("stopping mqtt")
+        settings['mqtt_client'].publish(settings['mqtt']['topic'] + "/" + zone['zone_mqtt_address'], "OFF")  # publish
 
 async def stop_zone(zone, xknx):
     irrigation_zone = Light(xknx,
