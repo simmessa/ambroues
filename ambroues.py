@@ -15,6 +15,8 @@ import paho.mqtt.client as mqtt
 
 from yaml import load, dump
 
+from flask import Flask
+
 # to enable debug just set env var AMBROUES_DEBUG to anything
 if 'AMBROUES_DEBUG' in os.environ:
     DEBUG = True #Useful for testing that KNX is sending stuff
@@ -23,6 +25,25 @@ else:
 # constants
 WATCH_LOOP_SECONDS = 10
 
+def log(string):
+    print(string)
+    return ("\n%s - %s" % (datetime.now(), string))
+
+#WTF
+async def api_call(route):
+    print(route)
+
+def init_api(app, settings):
+    @app.route("/")
+    def index():
+        loop.run_until_complete(api_call("/"))
+        return "OK"
+    @app.route("/logs")
+    def logs():
+        loop.run_until_complete(api_call("/logs"))
+        return "<pre>%s</pre>" % settings['logs']
+
+
 def init_mqtt(settings):
     if settings['mqtt']['enabled'] == True:
         try:
@@ -30,14 +51,16 @@ def init_mqtt(settings):
             client.connect(settings['mqtt']['broker_address'], settings['mqtt']['broker_port']) # connect to broker
             client.publish('ambroues'+"/"+"start", "started at %s" % datetime.now())  # publish
             settings['mqtt_client'] = client #eheh manipulate the object in memory...
-            print(Fore.GREEN + "Successfully connected to MQTT broker on %s \n" % settings['mqtt']['broker_address'])
+            settings['logs'] += log(Fore.GREEN + "Successfully connected to MQTT broker on %s \n" % settings['mqtt']['broker_address'])
         except:
             ex = sys.exc_info()[0]
             print("error: %s" % ex)
             print(Fore.RED + "Cannot start MQTT engine! Exiting.")
             exit()
 
-async def ambroues_init():
+app = Flask(__name__)
+
+async def ambroues_init(app):
     # Read Ambroues settings
     try:
         # Load settings
@@ -48,6 +71,9 @@ async def ambroues_init():
             except ImportError:
                 from yaml import Loader, Dumper
             settings = load(yaml_settings, Loader=Loader)
+            # init logs
+            settings['logs'] = "Welcome to Ambroues!\n"
+
             print(dump(settings, Dumper=Dumper, indent=2))
 
             # init xknx if required            
@@ -87,7 +113,8 @@ async def ambroues_init():
                 print(Fore.YELLOW + "\nKNX support disabled, KNX init skipped\n")
 
             # Init MQTT if required
-            init_mqtt(settings)
+            if settings['mqtt']['enabled'] == True:
+                init_mqtt(settings)
 
             # Telegram init if required (just a startup notification)
             if settings['telegram']['notifications'] == True:
@@ -97,6 +124,12 @@ async def ambroues_init():
                     await telegram_send(settings, "Ambroues started with telegram connection at %s" % datetime.now())
                 except:
                     print(Fore.RED + "Cannot init Telegram, have you defined the right settings in ambroues.json ?")
+
+            # Init API if required
+            if settings['api']['enabled'] == True:
+                init_api(app, settings)
+            else:
+                app = None
 
         with open('ambroues-tasks.json') as json_tasks:
             # load json into a dict
@@ -286,12 +319,14 @@ init()
 
 # declaring event loop and doing init
 loop = asyncio.get_event_loop()
-init_task = loop.create_task(ambroues_init())
+init_task = loop.create_task(ambroues_init(app))
 
 try:
     settings, tasks = loop.run_until_complete(init_task)
     watch_task = loop.create_task(watch(settings, tasks, DEBUG))
+    app.run(host="0.0.0.0", port=8000, debug=False, use_reloader=False)
     loop.run_until_complete(watch_task)
+
 # catch SIGINT
 except KeyboardInterrupt:
     sigint(settings, tasks)
