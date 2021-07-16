@@ -1,6 +1,6 @@
 # Ambroues
 
-Ambroues is a Python fully automated irrigation system for your KNX enabled home.
+Ambroues is a Python fully automated irrigation system for your KNX / MQTT enabled home.
 
 ## When to use
 
@@ -8,26 +8,27 @@ Ambroues actually makes sense if you have:
 
 - a KNX home automation setup with at least one KNX/IP usable interface on your LAN
 - KNX actuators linked to an irrigation system
+- _NEW_ MQTT broker with a connected irrigation system, (make sure to check out my other irrigation project: [Ambrogino](https://github.com/simmessa/ambrogino) for an ESP8266 / MQTT system)
 
 I've been using the excellent [OpenHAB](https://openhab.org) for my home automation but I'm not really happy
 of OpenHAB rules system, so, after setting up my irrigation schedule there I quickly got frustrated with the
 general instability and the unnecessary complexity.
 
-Your mileage may vary and maybe your KNX supervisor is far better at this but if you've been looking for 
-something simple and quick to learn for your irrigation needs then **Ambroues** is for you!
+I have since switched to the truly excellent [Home Assistant](https://github.com/home-assistant), but this project was already ready and tested for me, so, here it is!
+
+Your mileage may vary and maybe your KNX supervisor is far better at this than mine but if you've been looking for something simple and quick to learn for your irrigation needs then **Ambroues** might be for you!
 
 ## Other things you can do with Ambroues
 
-You can automate almost anything which is controlled by your KNX home, so you could also use Ambroues to do some
-**presence simulation**, I guess, that's not the usage I had in mind when I wrote this but I guess you can use it  
-however you like!
+You can automate almost anything which is controlled by your KNX home, so you could also use Ambroues to do some **presence simulation**, I guess, that's not the usage I had in mind when I wrote this but I guess you can use it however you like!
 
 ## Install
 
 You need Python3 for Ambroues, and he gives his best in a virtualenv... make sure you install the requirements.txt!
 
 ```
-virtualenv --python=python3
+virtualenv --python=python3 venv
+source ./venv/bin/activate
 pip3 install -r requirements.txt
 ```
 
