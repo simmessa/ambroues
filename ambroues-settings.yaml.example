@@ -1,0 +1,14 @@
+knx:
+    # this will make ambrouse figure out knx settings by itself, no knx settings below used
+    enabled: true # false will turn off knx completely
+    filename: xknx.yaml
+    clean_bus: true,
+mqtt:
+    # mqtt server and topic settings
+    enabled: true # false will turn off mqtt completely
+    broker_address: 192.168.1.3
+    broker_port: 1883
+telegram:
+  notifications: true
+  api_token: "123456:BLAHBLAHBLAH"
+  chat_id: "123456789"

@@ -1,11 +1,13 @@
 {
-    "knx_clean_bus": "Yes",
-    "telegram_notifications": "No",
-    "telegram": {
-      "api_token": "XXXXXXXXX",
-      "chat_id": "123456789"
-    },
   "zones": [
+    {
+      "zone_name": "mqtt one",
+      "zone_mqtt_address": "topic:msg",
+      "zone_enabled": "on",
+      "zone_start_time": "12:34",
+      "zone_duration_minutes": "5",
+      "zone_week_days": ["mon","wed","fri","sun"]
+    },
     {
       "zone_name": "giardino ovest",
       "zone_knx_address": "1/0/1",
@@ -25,7 +27,7 @@
     {
       "zone_name": "giardino est",
       "zone_knx_address": "1/0/3",
-      "zone_enabled": "on",
+      "zone_enabled": "off",
       "zone_start_time": "06:50",
       "zone_duration_minutes": "10",
       "zone_week_days": ["tue","thu","sat"]

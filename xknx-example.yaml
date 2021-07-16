@@ -1,9 +1,0 @@
-# you can put your knx over ip source address here
-general:
-    own_address: '15.15.251'
-#parameters to reach your knx over ip interface over your LAN connection
-connection:
-    tunneling:
-        gateway_ip: 192.168.1.1
-        gateway_port: 3671
-        local_ip: 192.168.1.2

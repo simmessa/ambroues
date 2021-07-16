@@ -1,4 +1,5 @@
 venv
 xknx.yaml
 .idea
-ambroues.json
+*.json
+*.yaml
