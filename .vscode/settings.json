@@ -12,4 +12,13 @@
 // the values you've explicitly set, above.
 "editor.detectIndentation": false,
 "python.pythonPath": "C:\\Python38\\python.exe"
+
+"workbench.colorCustomizations": {
+    "activityBar.background": "#000000",
+    "titleBar.activeBackground": "#ff9100",
+    "titleBar.activeForeground": "#FEFBFB",
+    "titleBar.inactiveBackground": "#000000",
+    "titleBar.inactiveForeground": "#FEFBFB"
+  }
+
 }
