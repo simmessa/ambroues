@@ -16,6 +16,8 @@ import paho.mqtt.client as mqtt
 from yaml import load, dump
 
 from flask import Flask, jsonify
+import logging
+import click, signal
 
 # to enable debug just set env var AMBROUES_DEBUG to anything
 if 'AMBROUES_DEBUG' in os.environ:
@@ -45,22 +47,9 @@ def log(string, code=""):
     log = {"type":log_type, "date":log_date, "msg":log_msg}
     return log
 
-#WTF
-async def api_call(route):
-    print(route)
-
-def init_api(app, settings):
-    @app.route("/")
-    def index():
-        loop.run_until_complete(api_call("/"))
-        out_file = open("./dist/index.html", "r")
-        out = out_file.read()
-        return out
-    @app.route("/logs")
-    def logs():
-        loop.run_until_complete(api_call("/logs"))
-        return jsonify(settings['logs'])
-
+def receiveSignal(signalNumber, frame):
+    print('Received:', signalNumber)
+    sigint(settings, tasks)
 
 def init_mqtt(settings):
     if settings['mqtt']['enabled'] == True:
@@ -76,7 +65,22 @@ def init_mqtt(settings):
             settings['logs'] += log("Cannot start MQTT engine! Exiting.", Fore.RED)
             exit()
 
-app = Flask(__name__)
+# Flask stuff
+
+# async def api_call(route):
+#     print(route)
+
+def init_api(app, settings):
+    @app.route("/")
+    async def index():
+        # loop.run_until_complete(api_call("/"))
+        out_file = open("./dist/index.html", "r")
+        out = out_file.read()
+        return out
+    @app.route("/logs")
+    async def logs():
+        # loop.run_until_complete(api_call("/logs"))
+        return jsonify(settings['logs'])
 
 async def ambroues_init(app):
     # Read Ambroues settings
@@ -177,18 +181,18 @@ async def watch(settings, tasks, DEBUG): # main irrigation endless loop...
         tasks['now_string'] = "%02d:%02d" % (now.hour, now.minute)
         tasks['today'] = now.strftime('%a')
         tasks['seconds'] = now.strftime('%S')
-        settings['logs'] += log("Watching irrigation jobs: (%s:%s - %s)" % (tasks['now_string'], tasks['seconds'], tasks['today']), Fore.GREEN)
+        settings['logs'].append(log("Watching irrigation jobs: (%s:%s - %s)" % (tasks['now_string'], tasks['seconds'], tasks['today']), Fore.GREEN))
 
         for zone in tasks['zones']: # check if needs watering
 
             if DEBUG:
-                settings['logs'] += log('%s is on? %s' % (zone['zone_name'], zone['on']))
+                settings['logs'].append(log('%s is on? %s' % (zone['zone_name'], zone['on'])))
 
             if zone['on'] == False: # check if zone is on already
                 if (zone['zone_start_time'] == tasks['now_string']) or zone['zone_enabled'] == 'force':
                     text = "%s matches!" % zone['zone_name']
                            # "watering for %s minutes" % (zone['zone_name'],zone['zone_duration_minutes'])
-                    settings['logs'] += log(text),
+                    settings['logs'].append(log(text)),
 
                     asyncio.gather(
                         start_water(settings, tasks, zone),
@@ -216,12 +220,12 @@ async def telegram_send(settings, text):
         url = "https://api.telegram.org/bot" + settings['telegram']['api_token'] + "/sendMessage?chat_id=" + settings['telegram']['chat_id'] + "&text=" + urllib.parse.quote(text)
         f = urllib.request.urlopen(url)
         if DEBUG:
-            settings['logs'] += log(f.read().decode('utf-8'))
+            settings['logs'].append(log(f.read().decode('utf-8')))
 
 async def start_water(settings, tasks, zone):
 
     if zone['zone_enabled'] == 'force' or ((zone['zone_enabled'] == 'on') and (tasks['today'].lower() in zone['zone_week_days'])):
-        settings['logs'] += log("%s enabled for today" % zone['zone_name'])
+        settings['logs'].append(log("%s enabled for today" % zone['zone_name']))
 
         # hack to avoid infinite watering: force > on
         if zone['zone_enabled'] == 'force':
@@ -234,7 +238,7 @@ async def start_water(settings, tasks, zone):
                                     group_address_switch=zone['zone_knx_address'])
 
             text = "watering [%s] for %s minutes (at %s) to knx address {%s}" % (zone['zone_name'], zone['zone_duration_minutes'], datetime.now(), zone['zone_knx_address'])
-            settings['logs'] += log(text)
+            settings['logs'].append(log(text))
             await irrigation_zone.set_on()
             zone['on'] = irrigation_zone.state
             await telegram_send(settings, text)
@@ -243,7 +247,7 @@ async def start_water(settings, tasks, zone):
         if 'zone_mqtt_address' in zone and settings['mqtt']['enabled'] == True:
             init_mqtt(settings)
             text = "watering [%s] for %s minutes (at %s) to mqtt address {%s}" % (zone['zone_name'], zone['zone_duration_minutes'], datetime.now(), zone['zone_mqtt_address'])
-            settings['logs'] += log(text)
+            settings['logs'].append(log(text))
             mqtt_topic = zone['zone_mqtt_address'].split(':')[0]
             mqtt_address = zone['zone_mqtt_address'].split(':')[1]
             settings['mqtt_client'].publish(mqtt_topic, mqtt_address) # publish msg TOPIC: ADDRESS
@@ -252,7 +256,7 @@ async def start_water(settings, tasks, zone):
 
     else:
         text = "zone [%s] is disabled or not planned for today (%s), won't start watering" % (zone['zone_name'], settings['today'])
-        settings['logs'] += log(text)
+        settings['logs'].append(log(text))
         await telegram_send(settings, text)
 
 async def stop_water(settings, tasks, zone):
@@ -270,7 +274,7 @@ async def stop_water(settings, tasks, zone):
             await irrigation_zone.set_off()
             zone['on'] = irrigation_zone.state
             text = "Zone [%s] completed watering (at %s)" % (zone['zone_name'], datetime.now())
-            settings['logs'] += log(text)
+            settings['logs'].append(log(text))
             await telegram_send(settings, text)
 
 
@@ -283,7 +287,7 @@ async def stop_water(settings, tasks, zone):
             mqtt_address = zone['zone_mqtt_address'].split(':')[1]
             settings['mqtt_client'].publish(mqtt_topic, 0) # publish msg TOPIC: 0
             text = "Zone [%s] completed watering (at %s)" % (zone['zone_name'], datetime.now())
-            settings['logs'] += log(text)
+            settings['logs'].append(log(text))
             zone['on'] = False # we just did that
             await telegram_send(settings, text)
 
@@ -292,25 +296,25 @@ async def stop_knx_zone(zone, xknx):
                             name=zone['zone_name'],
                             group_address_switch=zone['zone_knx_address'])
     await irrigation_zone.set_off()
-    settings['logs'] += log("Zone [%s] turned off because we're exiting (at %s)" % (zone['zone_name'], datetime.now()) )
+    settings['logs'].append(log("Zone [%s] turned off because we're exiting (at %s)" % (zone['zone_name'], datetime.now()) ))
 
 def stop_mqtt_zone(zone, mqtt_client):
     init_mqtt(settings)
     mqtt_topic = zone['zone_mqtt_address'].split(':')[0]
     mqtt_address = zone['zone_mqtt_address'].split(':')[1]
     mqtt_client.publish(mqtt_topic, 0) # publish msg TOPIC: 0
-    settings['logs'] += log("Zone [%s] turned off because we're exiting (at %s)" % (zone['zone_name'], datetime.now()) )
+    settings['logs'].append(log("Zone [%s] turned off because we're exiting (at %s)" % (zone['zone_name'], datetime.now()) ))
 
 async def stop_xknx(xknx):
     await xknx.stop()
-    settings['logs'] += log("\nKNX engine stopped.")
+    settings['logs'].append(log("\nKNX engine stopped."))
     await telegram_send(settings, "Ambroues successfully stopped xknx")
 
 def sigint(settings, tasks):
-    settings['logs'] += log("\nCaught SIGINT, exiting.", Fore.RED)
+    settings['logs'].append(log("\nCaught SIGINT, exiting.", Fore.RED))
 
     if settings['knx']['clean_bus'] and settings['knx']['enabled']:
-        settings['logs'] += log("knx_clean_bus option is on, switching off all knx zones:\n")
+        settings['logs'].append(log("knx_clean_bus option is on, switching off all knx zones:\n"))
         # stop knx zones
         for zone in tasks['zones']:
             if zone['zone_knx_address'] != "":
@@ -320,7 +324,7 @@ def sigint(settings, tasks):
         # stop xknx
         loop.run_until_complete(stop_xknx(xknx))
 
-    settings['logs'] += log("resetting all mqtt zones...")
+    settings['logs'].append(log("resetting all mqtt zones..."))
     for zone in tasks['zones']:
         try:
             if zone['zone_mqtt_address'] != "":
@@ -328,13 +332,32 @@ def sigint(settings, tasks):
         except:
             pass
     message = "Ambroues successfully terminated via SIGINT"
-    settings['logs'] += log("\n" + message)
+    settings['logs'].append(log("\n" + message))
     loop.run_until_complete(telegram_send(settings, message))
 
-    # exit() # is implicit
+    exit() # is not implicit
 
 # Init colorama
 init()
+
+# Create Flask App and disable logging to stdout
+app = Flask(__name__)
+logs = logging.getLogger('werkzeug')
+logs.disabled = True
+os.environ['WERKZEUG_RUN_MAIN'] = 'true'
+app.logger.disabled = True
+
+logs.setLevel(logging.ERROR)
+
+def secho(text, file=None, nl=None, err=None, color=None, **styles):
+    pass
+
+def echo(text, file=None, nl=None, err=None, color=None, **styles):
+    pass
+
+click.echo = echo
+click.secho = secho
+signal.signal(signal.SIGINT, receiveSignal)
 
 # declaring event loop and doing init
 loop = asyncio.get_event_loop()
@@ -343,9 +366,13 @@ init_task = loop.create_task(ambroues_init(app))
 try:
     settings, tasks = loop.run_until_complete(init_task)
     watch_task = loop.create_task(watch(settings, tasks, DEBUG))
-    app.run(host="0.0.0.0", port=8000, debug=False, use_reloader=False)
-    loop.run_until_complete(watch_task)
+    app_task = loop.create_task(app.run(host="0.0.0.0", port=8000, debug=False, use_reloader=False))
+
+    loop.run_until_complete(watch_task, app_task)
+
+    # loop.run_until_complete(app_task)
 
 # catch SIGINT
 except KeyboardInterrupt:
     sigint(settings, tasks)
+    
